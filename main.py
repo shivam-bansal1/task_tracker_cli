@@ -1,155 +1,123 @@
 import argparse
-import json
-from datetime import datetime
-from pathlib import Path
-import os
-from enum import Enum
-from typing import List, Optional
+from utils import TaskManager, TaskStatus
+
+def print_help():
+
+    help_text = """
+Available Commands:
+  add <description>                 - Add a new task
+  update <id> <description>         - Update task description
+  delete <id>                       - Delete a task
+  mark-done <id>                    - Mark task as done
+  mark-in-progress <id>             - Mark task as in progress
+  list [all|todo|done|in-progress]  - List tasks (default: all)
+  help                              - Show this help message
+  exit / quit                       - Exit the program
+"""
+    print(help_text)
 
 
-class TaskStatus(Enum):
-    DONE = "done"
-    COMPLETED = "completed"
-    INPROGRESS = "in-progress"
+def interactive_mode():
+    """Run the task tracker in interactive mode."""
+    task_manager = TaskManager()
+    print("=" * 50)
+    print("Task Tracker - Interactive Mode")
+    print("=" * 50)
+    print("Type 'help' for available commands or 'exit' to quit\n")
 
-    @classmethod
-    def from_string(cls, status: str):
+    while True:
         try:
-            return cls(status)
-        except ValueError:
-            raise ValueError(f"Invalid status: {status}. Must be one of {[s.value for s in cls]}")
+            user_input = input("task-tracker> ").strip()
 
+            if not user_input:
+                continue
 
-class TaskManager:
-    def __init__(self, file: str = "tasks.json"):
-        self.file_path = Path(file)
+            # Split input into command and arguments
+            parts = user_input.split(maxsplit=1)
+            command = parts[0].lower()
 
-    def _load_tasks(self) -> List[dict]:
-        if not self.file_path.exists():
-            return []
+            # Handle exit commands
+            if command in ["exit", "quit", "q"]:
+                print("Goodbye!")
+                break
 
-        try:
-            with open(self.file_path, "r") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            print("Warning, File is corrupt!")
-            return []
+            # Handle help command
+            if command == "help":
+                print_help()
+                continue
+
+            # Handle add command
+            if command == "add":
+                if len(parts) < 2:
+                    print("Error: Please provide a task description")
+                    print("Usage: add <description>")
+                else:
+                    print(task_manager.add_task(parts[1]))
+                continue
+
+            # Handle list command
+            if command == "list":
+                status_filter = parts[1] if len(parts) > 1 else "all"
+                if status_filter not in ["all", "todo", "done", "in-progress"]:
+                    print(f"Error: Invalid filter '{status_filter}'")
+                    print("Valid filters: all, todo, done, in-progress")
+                else:
+                    print(task_manager.list_tasks(status_filter))
+                continue
+
+            # Handle commands that require ID
+            if command in ["update", "delete", "mark-done", "mark-in-progress"]:
+                if len(parts) < 2:
+                    print(f"Error: Please provide a task ID")
+                    print(f"Usage: {command} <id>" + (" <description>" if command == "update" else ""))
+                    continue
+
+                # Parse ID and remaining arguments
+                args = parts[1].split(maxsplit=1)
+                try:
+                    task_id = int(args[0])
+                except ValueError:
+                    print("Error: Task ID must be a number")
+                    continue
+
+                if command == "update":
+                    if len(args) < 2:
+                        print("Error: Please provide a new description")
+                        print("Usage: update <id> <description>")
+                    else:
+                        print(task_manager.update_task(task_id, args[1]))
+
+                elif command == "delete":
+                    print(task_manager.delete_task(task_id))
+
+                elif command == "mark-done":
+                    print(task_manager.mark_task(task_id, TaskStatus.DONE))
+
+                elif command == "mark-in-progress":
+                    print(task_manager.mark_task(task_id, TaskStatus.IN_PROGRESS))
+
+                continue
+
+            # Unknown command
+            print(f"Unknown command: '{command}'")
+            print("Type 'help' for available commands")
+
+        except KeyboardInterrupt:
+            print("\n\nUse 'exit' or 'quit' to leave the program")
+        except EOFError:
+            print("\nGoodbye!")
+            break
         except Exception as e:
-            raise IOError(f"Error reading tasks file: {e}")
-
-    def _save_tasks(self, tasks: List[dict]) -> None:
-        try:
-            with open(self.file_path, "w") as f:
-                json.dump(tasks, f)
-        except Exception as e:
-            raise IOError(f"Error writing tasks file: {e}")
-
-    def _get_next_id(self):
-        return max((task["id"] for task in self._load_tasks()), default=0) + 1
-
-    def _find_task_index(self, tasks: List[dict], task_id: int) -> Optional[int]:
-        for idx, task in enumerate(tasks):
-            if task["task_id"] == task_id:
-                return idx
-        return None
-
-    def add_task(self, description: str):
-        if not description or description.strip():
-            return "Error: Task cannot be empty"
-
-        description = description.strip()
-        tasks = self._load_tasks()
-
-        for task in tasks:
-            if description == task["description"] and task["status"] != TaskStatus.DONE:
-                return "Error: Task already present"
-
-        task_id = self._get_next_id()
-        task = {
-            "id": task_id,
-            "description": description,
-            "status": "todo",
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now()),
-        }
-
-        tasks.append(task)
-        self._save_tasks(tasks)
-        return f"Task added successfully (ID: {task_id})"
-
-    def update_task(self, task_id, description: str):
-        if not description or description.strip():
-            return "Error: Task cannot be empty"
-
-        tasks = self._load_tasks()
-        if not tasks:
-            return "No existing tasks found"
-
-        description = description.strip()
-        task_idx = self._find_task_index(tasks, task_id)
-        if not task_idx:
-            return f"No task found with ID: {task_id}"
-
-        tasks[task_idx]['description'] = description.strip()
-        tasks[task_idx]['updated_at'] = str(datetime.now())
-        self._save_tasks(tasks)
-
-        return f"Task updated successfully (ID: {task_id})"
-
-    def delete_task(self, task_id: int) -> str:
-        tasks = self._load_tasks()
-        if not tasks:
-            return "No existing tasks found"
-
-        task_idx = self._find_task_index(tasks, task_id)
-        if not task_idx:
-            return f"No task found with ID: {task_id}"
-
-        tasks.pop(task_idx)
-        self._save_tasks(tasks)
-        return f"Task deleted successfully (ID: {task_id})"
-
-    def mark_task(self, task_id: int, status: TaskStatus) -> str:
-        tasks = self._load_tasks()
-        if not tasks:
-            return "No existing tasks found"
-
-        task_idx = self._find_task_index(tasks, task_id)
-        if not task_idx:
-            return f"No task found with ID: {task_id}"
-
-        tasks[task_idx]['status'] = status
-        tasks[task_idx]['updated_at'] = str(datetime.now())
-        self._save_tasks(tasks)
-        return f"Task updated successfully (ID: {task_id})"
-
-    def list_tasks(self, status_filter: Optional[str] = None) -> str:
-        tasks = self._load_tasks()
-        if not tasks:
-            return "No existing tasks found"
-
-        if status_filter and status_filter != "all":
-            filtered_tasks = [t for t in tasks if t['status'] == status_filter]
-        else:
-            filtered_tasks = tasks
-
-        if not filtered_tasks:
-            filter_msg = f" with status '{status_filter}'" if status_filter != "all" else ""
-            return f"No tasks found{filter_msg}"
-
-        output = []
-        for task in filtered_tasks:
-            output.append(
-                f"[{task['id']}] {task['description']} "
-                f"(Status: {task['status']}, Updated: {task['updated_at']})"
-            )
-
-        return "\n".join(output)
+            print(f"Error: {e}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Task Tracker")
-    subparser = parser.add_subparsers(dest="action", required=True)
+    parser = argparse.ArgumentParser(
+        description="Task Tracker - A simple CLI task management tool",
+        epilog="Run without arguments to start interactive mode"
+    )
+
+    subparser = parser.add_subparsers(dest="action")
 
     add_parser = subparser.add_parser("add", help="Add a new task")
     add_parser.add_argument("task", type=str, help="Task to add")
@@ -177,6 +145,11 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.action is None:
+        interactive_mode()
+        return 0
+
     task_manager = TaskManager()
 
     try:
