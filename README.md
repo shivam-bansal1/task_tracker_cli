@@ -36,6 +36,10 @@ cd task-tracker
 
 ## 💻 Usage
 
+Run in interactive mode:
+```
+python main.py
+```
 The CLI supports the following commands:
 
 1. add 
@@ -48,43 +52,43 @@ The CLI supports the following commands:
 
 ### ➕ Add a Task
 ```
-python main.py add "Buy groceries"
+add "Buy groceries"
 ```
 ### ✏️ Update an Existing Task
 ```
-python main.py update 1 "Buy groceries and vegetables"
+update 1 "Buy groceries and vegetables"
 ````
 
 ### ❌ Delete a Task
 ```
-python main.py delete 1
+delete 1
 ```
 ### 🔄 Mark Task as In Progress
 ```
-python main.py mark-in-progress 2
+mark-in-progress 2
 ```
 
 ### ✅ Mark Task as Done
 ```
-python main.py mark-done 3
+mark-done 3
 ```
 ### 📋 List Tasks
 ```
-python main.py list
+list
 ```
 
 ### 📋 List only todo tasks
 ```
-python main.py list todo
+list todo
 ```
 ### 📋 List only in-progress tasks
 ```
-python main.py list in-progress
+list in-progress
 ```
 
 ### 📋 List only done tasks
 ```
-python main.py list done
+list done
 ```
 
 ## Credits
