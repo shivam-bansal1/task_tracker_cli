@@ -1,7 +1,8 @@
 # 📌 Task Tracker CLI
 
 A simple, lightweight, file-based command-line task manager written in Python.
-Manage your tasks directly from the terminal — add, update, delete, mark progress, and list tasks with filters.
+Manage your tasks directly from the terminal — add, update, delete, mark progress, and list tasks with filters. <br>
+URL - <a>https://github.com/shivam-bansal1/task_tracker_cli</a>
 
 ## 🚀 Features
 
